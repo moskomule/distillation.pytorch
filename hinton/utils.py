@@ -42,13 +42,14 @@ torch.Tensor.hot_softmax = hot_softmax
 
 
 class DistillationTrainer(trainers.SupervisedTrainer):
-    def __init__(self, model, optimizer, loss_f, callbacks, scheduler, teacher_model, temperature):
+    def __init__(self, model, optimizer, loss_f, callbacks, scheduler, teacher_model, temperature, lambda_factor=1):
         super(DistillationTrainer, self).__init__(model, optimizer, loss_f, callbacks=callbacks, scheduler=scheduler)
         self.teacher = teacher_model
         for p in self.teacher.parameters():
             p.requires_grad_(False)
         self.teacher.to(self.device)
         self.temperature = temperature
+        self.lambda_factor = lambda_factor
 
     def iteration(self, data):
         input, target = data
@@ -59,7 +60,7 @@ class DistillationTrainer(trainers.SupervisedTrainer):
             lesson = self.teacher(input)
             kl_loss = F.kl_div(output.hot_logsoftmax(self.temperature), lesson.hot_softmax(self.temperature),
                                reduction="batchmean")
-            loss = self.loss_f(output, target) + (self.temperature ** 2) * kl_loss
+            loss = self.loss_f(output, target) + self.lambda_factor * (self.temperature ** 2) * kl_loss
             loss.backward()
             self.optimizer.step()
         else:
