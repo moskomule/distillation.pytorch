@@ -59,8 +59,6 @@ class DistillationTrainer(trainers.SupervisedTrainer):
             lesson = self.teacher(input)
             kl_loss = F.kl_div(output.hot_logsoftmax(self.temperature), lesson.hot_softmax(self.temperature),
                                reduction="batchmean")
-            if self.step % 100 == 0:
-                self.logger.info(f"kl_loss is {kl_loss:.10f}")
             loss = self.loss_f(output, target) + (self.temperature ** 2) * kl_loss
             loss.backward()
             self.optimizer.step()
