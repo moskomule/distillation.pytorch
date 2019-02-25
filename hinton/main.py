@@ -3,7 +3,7 @@ from homura import optim, lr_scheduler, callbacks, trainers, reporters
 from homura.vision.data.loaders import cifar10_loaders
 from homura.vision.models.classification import resnet20, wrn28_10
 from tqdm import trange
-from utils import DistillationTrainer
+from utils import DistillationTrainer, kl_loss
 
 
 def main():
@@ -26,7 +26,7 @@ def main():
     teacher_model = model.eval()
     model = {"resnet20": resnet20,
              "wrn28_10": wrn28_10}[args.model](num_classes=10)
-    c = [callbacks.AccuracyCallback(), callbacks.LossCallback()]
+    c = [callbacks.AccuracyCallback(), callbacks.LossCallback(), kl_loss]
     with reporters.TQDMReporter(range(200), callbacks=c) as tq, reporters.TensorboardReporter(c) as tb:
         trainer = DistillationTrainer(model, optimizer, F.cross_entropy, callbacks=[tq, tb],
                                       scheduler=scheduler, teacher_model=teacher_model, temperature=args.temperature)

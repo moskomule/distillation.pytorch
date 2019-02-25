@@ -1,7 +1,13 @@
 import torch
 from homura import trainers
+from homura.callbacks import metric_callback_decorator
 from homura.utils import Map
 from torch.nn import functional as F
+
+
+@metric_callback_decorator
+def kl_loss(data):
+    return data['kl_loss']
 
 
 def hot_logsoftmax(input: torch.Tensor, temperature: float, dim=-1) -> torch.Tensor:
@@ -36,9 +42,9 @@ class DistillationTrainer(trainers.SupervisedTrainer):
         output = self.model(input)
         with torch.no_grad():
             lesson = self.teacher(input)
-        loss = self.loss_f(output, target) + (self.temperature ** 2) * F.kl_div(output,
-                                                                                lesson.hot_logsoftmax(self.temperature))
-        results = Map(loss=loss, output=output)
+        kl_loss = F.kl_div(output, lesson.hot_logsoftmax(self.temperature), reduction="batchmean")
+        loss = self.loss_f(output, target) + (self.temperature ** 2) * kl_loss
+        results = Map(loss=loss, output=output, kl_loss=kl_loss)
         if self.is_train:
             self.optimizer.zero_grad()
             loss.backward()
