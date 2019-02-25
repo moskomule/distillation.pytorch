@@ -12,7 +12,7 @@ def hot_logsoftmax(input: torch.Tensor, temperature: float, dim=-1) -> torch.Ten
     :param dim:
     :return: 
     """
-    return input / temperature - (input / temperature).logsumexp(dim=dim)
+    return input / temperature - (input / temperature).logsumexp(dim=dim, keepdim=True)
 
 
 def hot_cross_entropy(input, target, temperature):

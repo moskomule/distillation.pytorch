@@ -2,7 +2,7 @@ import torch.nn.functional as F
 from homura import optim, lr_scheduler, callbacks, trainers, reporters
 from homura.vision.data.loaders import cifar10_loaders
 from homura.vision.models.classification import resnet20, wrn28_10
-
+from tqdm import trange
 from utils import DistillationTrainer
 
 
@@ -19,7 +19,7 @@ def main():
 
     trainer = trainers.SupervisedTrainer(model, optimizer, F.cross_entropy, scheduler=scheduler)
     trainer.logger.info("Train the teacher model!")
-    for _ in range(100):
+    for _ in trange(100, ncols=80):
         trainer.train(train_loader)
         trainer.test(test_loader)
 
