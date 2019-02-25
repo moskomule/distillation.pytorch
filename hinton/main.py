@@ -9,8 +9,8 @@ from utils import DistillationTrainer, kl_loss, MODELS
 def main():
     model = MODELS[args.teacher_model](num_classes=10)
     train_loader, test_loader = cifar10_loaders(args.batch_size)
-    weight_decay = 1e-4 if "resnet" in args.model else 5e-4
-    lr_decay = 0.1 if "resnet" in args.model else 0.2
+    weight_decay = 1e-4 if "resnet" in args.teacher_model else 5e-4
+    lr_decay = 0.1 if "resnet" in args.teacher_model else 0.2
     optimizer = optim.SGD(lr=1e-1, momentum=0.9, weight_decay=weight_decay)
     scheduler = lr_scheduler.MultiStepLR([50, 80], gamma=lr_decay)
 
@@ -22,8 +22,8 @@ def main():
 
     teacher_model = model.eval()
 
-    weight_decay = 1e-4 if "resnet" in args.model else 5e-4
-    lr_decay = 0.1 if "resnet" in args.model else 0.2
+    weight_decay = 1e-4 if "resnet" in args.student_model else 5e-4
+    lr_decay = 0.1 if "resnet" in args.student_model else 0.2
     optimizer = optim.SGD(lr=1e-1, momentum=0.9, weight_decay=weight_decay)
     scheduler = lr_scheduler.MultiStepLR([50, 80], gamma=lr_decay)
     model = MODELS[args.student_model](num_classes=10)

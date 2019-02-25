@@ -1,4 +1,3 @@
-import torch
 from homura import trainers
 from homura.callbacks import metric_callback_decorator
 from homura.utils import Map
@@ -14,31 +13,6 @@ MODELS = {"resnet20": resnet20,
 @metric_callback_decorator
 def kl_loss(data):
     return data['kl_loss']
-
-
-def hot_softmax(input: torch.Tensor, temperature: float, dim=-1) -> torch.Tensor:
-    x = input - input.max(dim=-1, keepdim=True)[0]
-    x = (x / temperature).exp()
-    return x / x.sum(dim=dim, keepdim=True)
-
-
-def hot_logsoftmax(input: torch.Tensor, temperature: float, dim=-1) -> torch.Tensor:
-    """ Logsoftmax with temperature 
-    
-    :param input: input logits
-    :param temperature: temperature parameter
-    :param dim:
-    :return: 
-    """
-    return input / temperature - (input / temperature).logsumexp(dim=dim, keepdim=True)
-
-
-def hot_cross_entropy(input, target, temperature):
-    return F.nll_loss(hot_logsoftmax(input, temperature), target)
-
-
-torch.Tensor.hot_logsoftmax = hot_logsoftmax
-torch.Tensor.hot_softmax = hot_softmax
 
 
 class DistillationTrainer(trainers.SupervisedTrainer):
@@ -58,7 +32,7 @@ class DistillationTrainer(trainers.SupervisedTrainer):
         if self.is_train:
             self.optimizer.zero_grad()
             lesson = self.teacher(input)
-            kl_loss = F.kl_div(output.hot_logsoftmax(self.temperature), lesson.hot_softmax(self.temperature),
+            kl_loss = F.kl_div((output / self.temperature).log_softmax(), (lesson / self.temperature).softmax(),
                                reduction="batchmean")
             loss = self.loss_f(output, target) + self.lambda_factor * (self.temperature ** 2) * kl_loss
             loss.backward()
