@@ -3,14 +3,14 @@ from homura import optim, lr_scheduler, callbacks, trainers, reporters
 from homura.vision.data.loaders import cifar10_loaders
 from tqdm import trange
 
-from utils import DistillationTrainer, kl_loss,MODELS
+from utils import DistillationTrainer, kl_loss, MODELS
 
 
 def main():
-    model = MODELS[args.model](num_classes=10)
+    model = MODELS[args.teacher_model](num_classes=10)
+    train_loader, test_loader = cifar10_loaders(args.batch_size)
     weight_decay = 1e-4 if "resnet" in args.model else 5e-4
     lr_decay = 0.1 if "resnet" in args.model else 0.2
-    train_loader, test_loader = cifar10_loaders(args.batch_size)
     optimizer = optim.SGD(lr=1e-1, momentum=0.9, weight_decay=weight_decay)
     scheduler = lr_scheduler.MultiStepLR([50, 80], gamma=lr_decay)
 
@@ -21,7 +21,13 @@ def main():
         trainer.test(test_loader)
 
     teacher_model = model.eval()
-    model = MODELS[args.model](num_classes=10)
+
+    weight_decay = 1e-4 if "resnet" in args.model else 5e-4
+    lr_decay = 0.1 if "resnet" in args.model else 0.2
+    optimizer = optim.SGD(lr=1e-1, momentum=0.9, weight_decay=weight_decay)
+    scheduler = lr_scheduler.MultiStepLR([50, 80], gamma=lr_decay)
+    model = MODELS[args.student_model](num_classes=10)
+
     c = [callbacks.AccuracyCallback(), callbacks.LossCallback(), kl_loss]
     with reporters.TQDMReporter(range(args.student_epochs), callbacks=c) as tq, reporters.TensorboardReporter(c) as tb:
         trainer = DistillationTrainer(model, optimizer, F.cross_entropy, callbacks=[tq, tb],
@@ -36,8 +42,9 @@ if __name__ == '__main__':
     import miniargs
 
     p = miniargs.ArgumentParser()
-    p.add_int("--batch_size", default=128)
-    p.add_str("--model", choices=list(MODELS.keys()))
+    p.add_int("--batch_size", default=256)
+    p.add_str("--teacher_model", choices=list(MODELS.keys()))
+    p.add_str("--student_model", choices=list(MODELS.keys()))
     p.add_float("--temperature", default=0.1)
     p.add_int("--teacher_epochs", default=100)
     p.add_int("--student_epochs", default=100)
