@@ -46,13 +46,15 @@ class DistillationTrainer(trainers.SupervisedTrainer):
     def iteration(self, data):
         input, target = data
         output = self.model(input)
-        with torch.no_grad():
-            lesson = self.teacher(input)
-        kl_loss = F.kl_div(output, lesson.hot_logsoftmax(self.temperature), reduction="batchmean")
-        loss = self.loss_f(output, target) + (self.temperature ** 2) * kl_loss
-        results = Map(loss=loss, output=output, kl_loss=kl_loss)
+
         if self.is_train:
             self.optimizer.zero_grad()
+            lesson = self.teacher(input)
+            kl_loss = F.kl_div(output, lesson.hot_logsoftmax(self.temperature), reduction="batchmean")
+            loss = self.loss_f(output, target) + (self.temperature ** 2) * kl_loss
             loss.backward()
             self.optimizer.step()
+        else:
+            loss = self.loss_f(output, target)
+        results = Map(loss=loss, output=output, kl_loss=kl_loss)
         return results
