@@ -17,7 +17,7 @@ def kl_loss(data):
 
 
 def hot_softmax(input: torch.Tensor, temperature: float, dim=-1) -> torch.Tensor:
-    x = input - input.max(dim=-1, keepdim=True)
+    x = input - input.max(dim=-1, keepdim=True)[0]
     x = (x / temperature).exp()
     return x / x.sum(dim=dim, keepdim=True)
 
