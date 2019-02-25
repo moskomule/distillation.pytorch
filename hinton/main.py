@@ -16,14 +16,14 @@ def main():
 
     trainer = trainers.SupervisedTrainer(model, optimizer, F.cross_entropy, scheduler=scheduler)
     trainer.logger.info("Train the teacher model!")
-    for _ in trange(100, ncols=80):
+    for _ in trange(args.teacher_epochs, ncols=80):
         trainer.train(train_loader)
         trainer.test(test_loader)
 
     teacher_model = model.eval()
     model = MODELS[args.model](num_classes=10)
     c = [callbacks.AccuracyCallback(), callbacks.LossCallback(), kl_loss]
-    with reporters.TQDMReporter(range(100), callbacks=c) as tq, reporters.TensorboardReporter(c) as tb:
+    with reporters.TQDMReporter(range(args.student_epochs), callbacks=c) as tq, reporters.TensorboardReporter(c) as tb:
         trainer = DistillationTrainer(model, optimizer, F.cross_entropy, callbacks=[tq, tb],
                                       scheduler=scheduler, teacher_model=teacher_model, temperature=args.temperature)
         trainer.logger.info("Train the student model!")
@@ -39,6 +39,8 @@ if __name__ == '__main__':
     p.add_int("--batch_size", default=128)
     p.add_str("--model", choices=list(MODELS.keys()))
     p.add_float("--temperature", default=0.1)
+    p.add_int("--teacher_epochs", default=100)
+    p.add_int("--student_epochs", default=100)
 
     args = p.parse()
     main()

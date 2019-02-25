@@ -16,6 +16,12 @@ def kl_loss(data):
     return data['kl_loss']
 
 
+def hot_softmax(input: torch.Tensor, temperature: float, dim=-1) -> torch.Tensor:
+    x = input - input.max(dim=-1, keepdim=True)
+    x = (x / temperature).exp()
+    return x / x.sum(dim=dim, keepdim=True)
+
+
 def hot_logsoftmax(input: torch.Tensor, temperature: float, dim=-1) -> torch.Tensor:
     """ Logsoftmax with temperature 
     
@@ -32,6 +38,7 @@ def hot_cross_entropy(input, target, temperature):
 
 
 torch.Tensor.hot_logsoftmax = hot_logsoftmax
+torch.Tensor.hot_softmax = hot_softmax
 
 
 class DistillationTrainer(trainers.SupervisedTrainer):
@@ -50,11 +57,15 @@ class DistillationTrainer(trainers.SupervisedTrainer):
         if self.is_train:
             self.optimizer.zero_grad()
             lesson = self.teacher(input)
-            kl_loss = F.kl_div(output, lesson.hot_logsoftmax(self.temperature), reduction="batchmean")
+            kl_loss = F.kl_div(output.hot_logsoftmax(self.temperature), lesson.hot_softmax(self.temperature),
+                               reduction="batchmean")
+            if self.step % 100 == 0:
+                self.logger.info(f"kl_loss is {kl_loss:.10f}")
             loss = self.loss_f(output, target) + (self.temperature ** 2) * kl_loss
             loss.backward()
             self.optimizer.step()
         else:
             loss = self.loss_f(output, target)
+            kl_loss = 0
         results = Map(loss=loss, output=output, kl_loss=kl_loss)
         return results
