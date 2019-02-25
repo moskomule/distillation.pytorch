@@ -1,17 +1,13 @@
 import torch.nn.functional as F
 from homura import optim, lr_scheduler, callbacks, trainers, reporters
 from homura.vision.data.loaders import cifar10_loaders
-from homura.vision.models.classification import resnet20, wrn28_10, wrn28_2, resnet56
 from tqdm import trange
 
-from utils import DistillationTrainer, kl_loss
+from utils import DistillationTrainer, kl_loss,MODELS
 
 
 def main():
-    model = {"resnet20": resnet20,
-             "wrn28_10": wrn28_10,
-             "wrn28_2": wrn28_2,
-             "resnet56": resnet56}[args.model](num_classes=10)
+    model = MODELS[args.model](num_classes=10)
     weight_decay = 1e-4 if "resnet" in args.model else 5e-4
     lr_decay = 0.1 if "resnet" in args.model else 0.2
     train_loader, test_loader = cifar10_loaders(args.batch_size)
@@ -25,8 +21,7 @@ def main():
         trainer.test(test_loader)
 
     teacher_model = model.eval()
-    model = {"resnet20": resnet20,
-             "wrn28_10": wrn28_10}[args.model](num_classes=10)
+    model = MODELS[args.model](num_classes=10)
     c = [callbacks.AccuracyCallback(), callbacks.LossCallback(), kl_loss]
     with reporters.TQDMReporter(range(100), callbacks=c) as tq, reporters.TensorboardReporter(c) as tb:
         trainer = DistillationTrainer(model, optimizer, F.cross_entropy, callbacks=[tq, tb],
@@ -42,7 +37,7 @@ if __name__ == '__main__':
 
     p = miniargs.ArgumentParser()
     p.add_int("--batch_size", default=128)
-    p.add_str("--model", choices=["resnet20", "wrn28_10"])
+    p.add_str("--model", choices=list(MODELS.keys()))
     p.add_float("--temperature", default=0.1)
 
     args = p.parse()
