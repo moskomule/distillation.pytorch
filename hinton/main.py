@@ -1,18 +1,19 @@
 import torch.nn.functional as F
 from homura import optim, lr_scheduler, callbacks, trainers, reporters
 from homura.vision.data.loaders import cifar10_loaders
-from homura.vision.models.classification import resnet20, wrn28_10
+from homura.vision.models.classification import resnet20, wrn28_10, wrn28_2, resnet56
 from tqdm import trange
+
 from utils import DistillationTrainer, kl_loss
 
 
 def main():
     model = {"resnet20": resnet20,
-             "wrn28_10": wrn28_10}[args.model](num_classes=10)
-    weight_decay = {"resnet20": 1e-4,
-                    "wrn28_10": 5e-4}[args.model]
-    lr_decay = {"resnet20": 0.1,
-                "wrn28_10": 0.2}[args.model]
+             "wrn28_10": wrn28_10,
+             "wrn28_2": wrn28_2,
+             "resnet56": resnet56}[args.model](num_classes=10)
+    weight_decay = 1e-4 if "resnet" in args.model else 5e-4
+    lr_decay = 0.1 if "resnet" in args.model else 0.2
     train_loader, test_loader = cifar10_loaders(args.batch_size)
     optimizer = optim.SGD(lr=1e-1, momentum=0.9, weight_decay=weight_decay)
     scheduler = lr_scheduler.MultiStepLR([50, 80], gamma=lr_decay)
@@ -27,7 +28,7 @@ def main():
     model = {"resnet20": resnet20,
              "wrn28_10": wrn28_10}[args.model](num_classes=10)
     c = [callbacks.AccuracyCallback(), callbacks.LossCallback(), kl_loss]
-    with reporters.TQDMReporter(range(200), callbacks=c) as tq, reporters.TensorboardReporter(c) as tb:
+    with reporters.TQDMReporter(range(100), callbacks=c) as tq, reporters.TensorboardReporter(c) as tb:
         trainer = DistillationTrainer(model, optimizer, F.cross_entropy, callbacks=[tq, tb],
                                       scheduler=scheduler, teacher_model=teacher_model, temperature=args.temperature)
         trainer.logger.info("Train the student model!")
